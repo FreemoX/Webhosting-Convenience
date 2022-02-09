@@ -67,7 +67,7 @@ perform_changes() { # Perform writes
     newsite_webroot="$WEBROOT/$newsite_fqdn" # Webroot folder for the new site
 
     # Create the webroot folder, or output an error
-    sudo mkdir "$newsite_webroot" || error "Unable to create the webroot directory"
+    sudo mkdir -p "$newsite_webroot" || error "Unable to create the webroot directory"
 
     # Create the default index.html file, or output an error
     sudo echo "<html>
