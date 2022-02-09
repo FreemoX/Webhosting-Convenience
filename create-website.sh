@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_VERSION="0.3.2"
+SCRIPT_VERSION="0.3.1"
 LAST_UPDATE="09.02.22"
 echo "Script version: $SCRIPT_VERSION"
 echo "  Version date: $LAST_UPDATE"
@@ -25,12 +25,13 @@ setup_variables() { # Initialize some variables and constants
 check_existing() {
     [ -d $WEBROOT ] && echo -e "The web directory already exists.\nThis usually means a web server already is installed" || echo -e "The web directory does not exist.\nWe'll install Apache2 for you"
     if [[ -d $APACHE2_CONF_ROOT ]]; then
-    echo "Some dependancies were found missing"
-    read -p "Do you want to install them? [y|n]: " reply
-    if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
-        install_deps
-    else # If user does not reply with yes
-        echo -e "Ok, proceeding without installing dependancies\nPlease note that the installation will likely fail\n" && wait 5
+        echo "Some dependancies were found missing"
+        read -p "Do you want to install them? [y|n]: " reply
+        if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+            install_deps
+        else # If user does not reply with yes
+            echo -e "Ok, proceeding without installing dependancies\nPlease note that the installation will likely fail\n" && wait 5
+        fi
     fi
 }
 
