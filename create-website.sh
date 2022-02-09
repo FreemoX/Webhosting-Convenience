@@ -18,6 +18,7 @@ setup_variables() { # Initialize some variables and constants
 
 check_existing() {
     [ -d $WEBROOT ] && echo -e "The web directory already exists.\nThis usually means a web server already is installed" || echo -e "The web directory does not exist.\nWe'll install Apache2 for you"
+    [ -d $APACHE2_CONF_ROOT ] || install_deps
 }
 
 read_settings() { # Ask the user for input
