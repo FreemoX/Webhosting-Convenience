@@ -1,5 +1,11 @@
 #!/bin/bash
 
+SCRIPT_VERSION="0.3.1"
+LAST_UPDATE="09.02.22"
+echo "Script version: $SCRIPT_VERSION"
+echo "  Version date: $LAST_UPDATE"
+echo ""
+
 # Check if the script is being run as sudo, otherwise abort the script
 [ $(id -u) -ne 0 ] && echo "Please run as sudo!" && exit 0
 
@@ -18,16 +24,46 @@ setup_variables() { # Initialize some variables and constants
 
 check_existing() {
     [ -d $WEBROOT ] && echo -e "The web directory already exists.\nThis usually means a web server already is installed" || echo -e "The web directory does not exist.\nWe'll install Apache2 for you"
-    [ -d $APACHE2_CONF_ROOT ] || install_deps
+    if [[ -d $APACHE2_CONF_ROOT ]]; then
+    echo "Some dependancies were found missing"
+    read -p "Do you want to install them? [y|n]: " reply
+    if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+        install_deps
+    else # If user does not reply with yes
+        echo -e "Ok, proceeding without installing dependancies\nPlease note that the installation will likely fail\n" && wait 5
+    fi
 }
 
 read_settings() { # Ask the user for input
 
     # Read the FQDN (Fully Qualified Domain Name)
     while [ $checking == "true" ]; do
+        echo -e "A Fully Qualified Domain Name (FQDN) isn't needed, but preferable\nPlease enter the FQDN for your website\nThis will also be the website folder name"
         read -p "FQDN: " newsite_fqdn
-        [ -d "$WEBROOT/$newsite_fqdn" ] && echo -e "That site name is already taken, please try again\n" || webroot_check="ok"
-        [ -f "$APACHE2_CONF_ROOT/$newsite_fqdn.conf" ] && echo -e "That site config already exist, please try again\n" || webconf_check="ok"
+        if [[ -d "$WEBROOT/$newsite_fqdn" ]]; then
+            EXISTING_WEBROOT
+            echo -e "That site name is already taken"
+            read -p "Do you want to overwrite it? [y|n]: " reply
+            if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+                REMOVE_EXISTING_WEBROOT="true"
+            else # If user does not reply with yes
+                echo "Ok, please select another FQDN"
+            fi
+        else
+            webroot_check="ok"
+        fi
+        # && echo -e "That site config already exist, please try again\n" || 
+        if [[ -f "$APACHE2_CONF_ROOT/$newsite_fqdn.conf" ]]; then
+            echo -e "That site config already exists"
+            read -p "Do you want to overwrite it? [y|n]: " reply
+            if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+                REMOVE_EXISTING_SITE_CONF="true"
+            else # If user does not reply with yes
+                echo "Ok, please select another FQDN"
+            fi
+        else
+            webconf_check="ok"
+        fi
         [ "$webroot_check" = "ok" ] && [ "$webconf_check" = "ok" ] && checking="false"
     done
     checking="true"
@@ -44,10 +80,10 @@ read_settings() { # Ask the user for input
         read -p "Do you want to download it? [y|n]: " reply
         if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
             WORDPRESS_RESPONSE="Wordpress: To be installed"
-            WP=1
+            INSTALL_WP="true"
         else # If user does not reply with yes
             WORDPRESS_RESPONSE="Wordpress: Do not install"
-            WP=0
+            INSTALL_WP="false"
         fi
     fi
 
@@ -85,11 +121,15 @@ echo_summary() { # Prints a summary of the following events
 perform_changes() { # Perform writes
     newsite_webroot="$WEBROOT/$newsite_fqdn" # Webroot folder for the new site
 
+    # If found, clean up existing configurations
+    [ $REMOVE_EXISTING_WEBROOT == "true" ] && sudo rm -r "$WEBROOT/$newsite_fqdn"
+    [ $REMOVE_EXISTING_SITE_CONF == "true" ] && sudo rm "$APACHE2_CONF_ROOT/$newsite_fqdn.conf"
+
     # Create the webroot folder, or output an error
     sudo mkdir -p "$newsite_webroot" || error "Unable to create the webroot directory"
     
     # Check if the user wants to download wordpress
-    if [[ $WP == 1 ]]; then
+    if [[ $INSTALL_WP == "true" ]]; then
         cd $WEBROOT
         if [[! -f "latest.tar.gz" ]]; then
             sudo -u www-data wget https://wordpress.org/latest.tar.gz && wait
@@ -107,7 +147,7 @@ perform_changes() { # Perform writes
     </html>" > "$newsite_webroot/index.html" || error "Unable to create the default index.html file"
 
     # Create the virtual host file, or output an error
-    if [[ $WP == 0 ]]; then
+    if [[ $INSTALL_WP == "false" ]]; then
         sudo echo "<VirtualHost *:80>
         ServerAdmin $newsite_admin_email
         ServerName $newsite_fqdn
@@ -116,7 +156,7 @@ perform_changes() { # Perform writes
         ErrorLog ${APACHE_LOG_DIR}/$newsite_fqdn-error.log
         CustomLog ${APACHE_LOG_DIR}/$newsite_fqdn-access.log combined
         </VirtualHost>" > "$APACHE2_CONF_ROOT/$newsite_fqdn.conf" || error "Unable to write site config file"
-    elif [[ $WP == 1 ]]; then
+    elif [[ $INSTALL_WP == "true" ]]; then
         sudo echo "<VirtualHost *:80>
         ServerAdmin $newsite_admin_email
         ServerName $newsite_fqdn
@@ -138,7 +178,7 @@ perform_changes() { # Perform writes
 echo_complete() { # Print some useful information for the user after the script is complete
     echo -e "\n\nThe website should now be set up and operational, ready for use.\nPlease verify by going to $newsite_fqdn/index.html\n\nNOTE: Routing is not handled by this script,\nand need to be set up externally in order to reach the site!\nIf routing is not already in place, you can reach the site\nbo going to the IP of this machine appended by $newsite_fqdn\nPlease note that this script does currently not set up HTTPS or databases\n\n"
     
-    if [[ $WP == 1 ]]; then
+    if [[ $INSTALL_WP == 1 ]]; then
         echo -e "It is recommended to remove the downloaded \"latest.tar.gz\" file\nunless you as installing multiple sites at once"
         read -p "Delete the downloaded Wordpress \"latest.tar.gz\" file? [y|n]: " reply
         if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
@@ -146,6 +186,7 @@ echo_complete() { # Print some useful information for the user after the script 
         else # If user does not reply with yes
             echo "Ok, keeping the tar.gz file"
         fi
+        echo -e "\nPlease note:\nWordpress requires connection to a database,\nwhich this script does not handle\n\n"
     fi
 }
 
