@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_VERSION="0.3.1"
+SCRIPT_VERSION="0.3.2"
 LAST_UPDATE="09.02.22"
 echo "Script version: $SCRIPT_VERSION"
 echo "  Version date: $LAST_UPDATE"
@@ -103,11 +103,15 @@ read_settings() { # Ask the user for input
 }
 
 echo_summary() { # Prints a summary of the following events
+    [ $REMOVE_EXISTING_SITE_CONF == "true" ] && RESC_REPLY="To be removed" || RESC_REPLY="To be kept"
+    [ $REMOVE_EXISTING_WEBROOT == "true" ] && REW_REPLY="To be removed" || REW_REPLY="To be kept"
     echo "The following is a summary of your input"
     echo "Domain: $newsite_fqdn"
     echo "Site Name: $newsite_sitename"
     echo "Email: $newsite_admin_email"
     echo "$WORDPRESS_RESPONSE"
+    echo "Existing Webroot: $RESC_REPLY"
+    echo "Existing Webconf: $REW_REPLY"
     #echo "SSL Certification: $newsite_ssl_response"
     read -p "Is this correct? [y|n]: " reply
     if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
