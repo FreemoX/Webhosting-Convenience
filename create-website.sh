@@ -16,6 +16,10 @@ setup_variables() { # Initialize some variables and constants
     checking="true"
 }
 
+check_existing() {
+    [ -d $WEBROOT ] && echo -e "The web directory already exists.\nThis usually means a web server already is installed" || echo -e "The web directory does not exist.\nWe'll install Apache2 for you"
+}
+
 read_settings() { # Ask the user for input
 
     # Read the FQDN (Fully Qualified Domain Name)
@@ -106,6 +110,7 @@ error() { # Output a defined error message before aborting the script
 main(){ # Main function
     [ "$1" = "--install-deps" ] && install_deps
     setup_variables
+    check_existing
     read_settings
     echo_summary
     perform_changes
