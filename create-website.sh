@@ -76,7 +76,7 @@ read_settings() { # Ask the user for input
     read -p "Admin Email: " newsite_admin_email
     
     WORDPRESS_RESPONSE="Wordpress is already installed"
-    if [! -d "$WEBROOT/$newsite_fqdn/wp-admin" ]; then
+    if [[! -d "$WEBROOT/$newsite_fqdn/wp-admin" ]]; then
         echo "Wordpress is not already installed"
         read -p "Do you want to download it? [y|n]: " reply
         if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
@@ -104,8 +104,8 @@ read_settings() { # Ask the user for input
 }
 
 echo_summary() { # Prints a summary of the following events
-    [ $REMOVE_EXISTING_SITE_CONF == "true" ] && RESC_REPLY="To be removed" || RESC_REPLY="To be kept"
-    [ $REMOVE_EXISTING_WEBROOT == "true" ] && REW_REPLY="To be removed" || REW_REPLY="To be kept"
+    [ $REMOVE_EXISTING_SITE_CONF = "true" ] && RESC_REPLY="To be removed" || RESC_REPLY="To be kept"
+    [ $REMOVE_EXISTING_WEBROOT = "true" ] && REW_REPLY="To be removed" || REW_REPLY="To be kept"
     echo "The following is a summary of your input"
     echo "Domain: $newsite_fqdn"
     echo "Site Name: $newsite_sitename"
@@ -127,14 +127,14 @@ perform_changes() { # Perform writes
     newsite_webroot="$WEBROOT/$newsite_fqdn" # Webroot folder for the new site
 
     # If found, clean up existing configurations
-    [ $REMOVE_EXISTING_WEBROOT == "true" ] && sudo rm -r "$WEBROOT/$newsite_fqdn"
-    [ $REMOVE_EXISTING_SITE_CONF == "true" ] && sudo rm "$APACHE2_CONF_ROOT/$newsite_fqdn.conf"
+    [ $REMOVE_EXISTING_WEBROOT = "true" ] && sudo rm -r "$WEBROOT/$newsite_fqdn"
+    [ $REMOVE_EXISTING_SITE_CONF = "true" ] && sudo rm "$APACHE2_CONF_ROOT/$newsite_fqdn.conf"
 
     # Create the webroot folder, or output an error
     sudo mkdir -p "$newsite_webroot" || error "Unable to create the webroot directory"
     
     # Check if the user wants to download wordpress
-    if [[ $INSTALL_WP == "true" ]]; then
+    if [[ $INSTALL_WP = "true" ]]; then
         cd $WEBROOT
         if [[! -f "latest.tar.gz" ]]; then
             sudo -u www-data wget https://wordpress.org/latest.tar.gz && wait
@@ -152,7 +152,7 @@ perform_changes() { # Perform writes
     </html>" > "$newsite_webroot/index.html" || error "Unable to create the default index.html file"
 
     # Create the virtual host file, or output an error
-    if [[ $INSTALL_WP == "false" ]]; then
+    if [[ $INSTALL_WP = "false" ]]; then
         sudo echo "<VirtualHost *:80>
         ServerAdmin $newsite_admin_email
         ServerName $newsite_fqdn
@@ -161,7 +161,7 @@ perform_changes() { # Perform writes
         ErrorLog ${APACHE_LOG_DIR}/$newsite_fqdn-error.log
         CustomLog ${APACHE_LOG_DIR}/$newsite_fqdn-access.log combined
         </VirtualHost>" > "$APACHE2_CONF_ROOT/$newsite_fqdn.conf" || error "Unable to write site config file"
-    elif [[ $INSTALL_WP == "true" ]]; then
+    elif [[ $INSTALL_WP = "true" ]]; then
         sudo echo "<VirtualHost *:80>
         ServerAdmin $newsite_admin_email
         ServerName $newsite_fqdn
@@ -183,7 +183,7 @@ perform_changes() { # Perform writes
 echo_complete() { # Print some useful information for the user after the script is complete
     echo -e "\n\nThe website should now be set up and operational, ready for use.\nPlease verify by going to $newsite_fqdn/index.html\n\nNOTE: Routing is not handled by this script,\nand need to be set up externally in order to reach the site!\nIf routing is not already in place, you can reach the site\nbo going to the IP of this machine appended by $newsite_fqdn\nPlease note that this script does currently not set up HTTPS or databases\n\n"
     
-    if [[ $INSTALL_WP == 1 ]]; then
+    if [[ $INSTALL_WP = "true" ]]; then
         echo -e "It is recommended to remove the downloaded \"latest.tar.gz\" file\nunless you as installing multiple sites at once"
         read -p "Delete the downloaded Wordpress \"latest.tar.gz\" file? [y|n]: " reply
         if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
