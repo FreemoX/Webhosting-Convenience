@@ -7,7 +7,7 @@ install_deps() { # Installs all basic dependancies for a web server based on Apa
     sudo apt install lsb-release ca-certificates apt-transport-https software-properties-common -y
     sudo add-apt-repository ppa:ondrej/php
     sudo apt update
-    sudo apt install apache2 mariadb-client mariadb-server php8.0 php8.0-{bcmath,bz2,cgi,cli,common,curl,gd,imagick,imap,intl,ldap,mbstring,mysql,opcache,readline,snmp,soap,tidy,xml,yaml,zip} -y
+    sudo apt install apache2 mariadb-client mariadb-server php8.0 php8.0-{bcmath,bz2,cgi,cli,common,curl,gd,imagick,imap,intl,ldap,mbstring,mysql,opcache,readline,snmp,soap,tidy,xml,yaml,zip} libapache2-mod-php -y
 }
 
 setup_variables() { # Initialize some variables and constants
@@ -37,6 +37,19 @@ read_settings() { # Ask the user for input
 
     # Read the admin email address
     read -p "Admin Email: " newsite_admin_email
+    
+    WORDPRESS_RESPONSE="Wordpress is already installed"
+    if [! -d "$WEBROOT/$newsite_fqdn/wp-admin" ]; then
+        echo "Wordpress is not already installed"
+        read -p "Do you want to download it? [y|n]: " reply
+        if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+            WORDPRESS_RESPONSE="Wordpress: To be installed"
+            WP=1
+        else # If user does not reply with yes
+            WORDPRESS_RESPONSE="Wordpress: Do not install"
+            WP=0
+        fi
+    fi
 
     # # # # # # # # # # # # # # # # # # # # # # # #
     #                                             #
@@ -58,6 +71,7 @@ echo_summary() { # Prints a summary of the following events
     echo "Domain: $newsite_fqdn"
     echo "Site Name: $newsite_sitename"
     echo "Email: $newsite_admin_email"
+    echo "$WORDPRESS_RESPONSE"
     #echo "SSL Certification: $newsite_ssl_response"
     read -p "Is this correct? [y|n]: " reply
     if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
@@ -73,6 +87,17 @@ perform_changes() { # Perform writes
 
     # Create the webroot folder, or output an error
     sudo mkdir -p "$newsite_webroot" || error "Unable to create the webroot directory"
+    
+    # Check if the user wants to download wordpress
+    if [[ $WP == 1 ]]; then
+        cd $WEBROOT
+        if [[! -f "latest.tar.gz" ]]; then
+            sudo -u www-data wget https://wordpress.org/latest.tar.gz && wait
+        fi
+        sudo -u www-data tar -xvf latest.tar.gz && wait
+        sudo -u www-data cp wordpress/* /$newsite_fqdn/
+        sudo rm wordpress -r
+    fi
 
     # Create the default index.html file, or output an error
     sudo echo "<html>
@@ -82,14 +107,25 @@ perform_changes() { # Perform writes
     </html>" > "$newsite_webroot/index.html" || error "Unable to create the default index.html file"
 
     # Create the virtual host file, or output an error
-    sudo echo "<VirtualHost *:80>
-    ServerAdmin $newsite_admin_email
-    ServerName $newsite_fqdn
-    DocumentRoot $newsite_webroot
-    DirectoryIndex index.html
-    ErrorLog ${APACHE_LOG_DIR}/$newsite_fqdn-error.log
-    CustomLog ${APACHE_LOG_DIR}/$newsite_fqdn-access.log combined
-    </VirtualHost>" > "$APACHE2_CONF_ROOT/$newsite_fqdn.conf" || error "Unable to write site config file"
+    if [[ $WP == 0 ]]; then
+        sudo echo "<VirtualHost *:80>
+        ServerAdmin $newsite_admin_email
+        ServerName $newsite_fqdn
+        DocumentRoot $newsite_webroot
+        DirectoryIndex index.html
+        ErrorLog ${APACHE_LOG_DIR}/$newsite_fqdn-error.log
+        CustomLog ${APACHE_LOG_DIR}/$newsite_fqdn-access.log combined
+        </VirtualHost>" > "$APACHE2_CONF_ROOT/$newsite_fqdn.conf" || error "Unable to write site config file"
+    elif [[ $WP == 1 ]]; then
+        sudo echo "<VirtualHost *:80>
+        ServerAdmin $newsite_admin_email
+        ServerName $newsite_fqdn
+        DocumentRoot $newsite_webroot
+        DirectoryIndex index.php
+        ErrorLog ${APACHE_LOG_DIR}/$newsite_fqdn-error.log
+        CustomLog ${APACHE_LOG_DIR}/$newsite_fqdn-access.log combined
+        </VirtualHost>" > "$APACHE2_CONF_ROOT/$newsite_fqdn.conf" || error "Unable to write site config file"
+    fi
 
     # Generate proper apache user permissions, or output an error
     $(sudo chown -R www-data:www-data $newsite_webroot) || error "Unable to write webroot privileges"
@@ -100,7 +136,17 @@ perform_changes() { # Perform writes
 }
 
 echo_complete() { # Print some useful information for the user after the script is complete
-    echo -e "The website should now be set up and operational, ready for use.\nPlease verify by going to $newsite_fqdn/index.html\n\nNOTE: Routing is not handled by this script,\nand need to be set up externally in order to reach the site!\n"
+    echo -e "\n\nThe website should now be set up and operational, ready for use.\nPlease verify by going to $newsite_fqdn/index.html\n\nNOTE: Routing is not handled by this script,\nand need to be set up externally in order to reach the site!\nIf routing is not already in place, you can reach the site\nbo going to the IP of this machine appended by $newsite_fqdn\nPlease note that this script does currently not set up HTTPS or databases\n\n"
+    
+    if [[ $WP == 1 ]]; then
+        echo -e "It is recommended to remove the downloaded \"latest.tar.gz\" file\nunless you as installing multiple sites at once"
+        read -p "Delete the downloaded Wordpress \"latest.tar.gz\" file? [y|n]: " reply
+        if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+            sudo rm $WEBROOT/latest.tar.gz && wait && echo "... The tar.gz file has been deleted"
+        else # If user does not reply with yes
+            echo "Ok, keeping the tar.gz file"
+        fi
+    fi
 }
 
 error() { # Output a defined error message before aborting the script
