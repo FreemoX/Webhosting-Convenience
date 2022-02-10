@@ -215,6 +215,7 @@ error() { # Output a defined error message before aborting the script
 }
 
 read_yn() {
+    reply_done="false"
     reply="" # Clear out any old value
     while [[ "$reply_done" = "false" ]]; do # Keep asking until a valid response is given
         read -p "$1 [Y|N]: " reply
