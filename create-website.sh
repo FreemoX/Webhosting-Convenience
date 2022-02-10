@@ -220,6 +220,8 @@ read_yn() {
         read -p "$1 [Y|N]: " reply
         if [[ ! "$reply" =~ ^(Y|y|N|n)$ ]]; then
             echo -e "Unknown answer, please try again\n"
+        elif [[ "$reply" =~ ^(Y|y|N|n)$ ]]; then
+            reply_done="true"
         fi
     done
     if [[ "$reply" =~ ^(Y|y)$ ]]; then
