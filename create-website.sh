@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Output current script version info
-SCRIPT_VERSION="0.3.3"
+SCRIPT_VERSION="0.3.4"
 LAST_UPDATE="10.02.22"
 echo ""
 echo "Script version: $SCRIPT_VERSION"
@@ -11,7 +11,7 @@ echo ""
 # Check if the script is being run as sudo, otherwise abort the script
 [ $(id -u) -ne 0 ] && echo "Please run as sudo!" && exit 0
 
-install_deps() { # Installs all basic dependancies for a web server based on Apache2, MariaDB, and PHP 8.0
+install_deps() { # Installs all basic dependencies for a web server based on Apache2, MariaDB, and PHP 8.0
     sudo apt install lsb-release ca-certificates apt-transport-https software-properties-common -y
     sudo add-apt-repository ppa:ondrej/php
     sudo apt update
@@ -25,15 +25,15 @@ setup_variables() { # Initialize some variables and constants
 }
 
 # The check_existing needs to be improved
-check_existing() { # Perform a basic dependancy check, and prompt the user to install them if it fails
+check_existing() { # Perform a basic dependency check, and prompt the user to install them if it fails
     [ -d "$WEBROOT" ] && echo -e "The web directory already exists.\nThis usually means a web server already is installed" || echo -e "The web directory does not exist.\nWe'll install Apache2 for you"
     if [[ -d "$APACHE2_CONF_ROOT" ]]; then
-        echo "Some dependancies were found to be missing"
-        read -p "Do you want to install them? [y|n]: " reply
-        if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+        echo -e "Some dependencies were found to be missing\nThis script can install Apache2, Maria-DB and PHP 8.0 for you"
+        read_yn "Do you want to install them?"
+        if [ "$reply" = "y" ]; then # If user replies with yes
             install_deps
-        else # If user does not reply with yes
-            echo -e "Ok, proceeding without installing dependancies\nPlease note that the installation will likely fail\nunless you already have a working web environment" && sleep 5
+        elif [ "$reply" = "n" ]; then # If user does not reply with yes
+            echo -e "Ok, proceeding without installing dependencies\nPlease note that the installation will likely fail\nunless you already have a working web environment" && sleep 5
         fi
     fi
 }
@@ -46,11 +46,11 @@ read_settings() { # Ask the user for input
         if [[ -d "$WEBROOT/$newsite_fqdn" ]]; then
             EXISTING_WEBROOT="true"
             echo -e "That site name is already taken"
-            read -p "Do you want to overwrite it? [y|n]: " reply
-            if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+            read_yn "Do you want to overwrite it?"
+            if [ "$reply" = "y" ]; then # If user replies with yes
                 REMOVE_EXISTING_WEBROOT="true"
                 webroot_check="ok"
-            else # If user does not reply with yes
+            elif [ "$reply" = "n" ]; then # If user does not reply with yes
                 echo "Ok, please select another FQDN"
             fi
         else
@@ -60,11 +60,11 @@ read_settings() { # Ask the user for input
         if [[ -f "$APACHE2_CONF_ROOT/$newsite_fqdn.conf" ]]; then
             EXISTING_WEBCONF="true"
             echo -e "That site config already exists"
-            read -p "Do you want to overwrite it? [y|n]: " reply
-            if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+            read_yn "Do you want to overwrite it?"
+            if [ "$reply" = "y" ]; then # If user replies with yes
                 REMOVE_EXISTING_SITE_CONF="true"
                 webconf_check="ok"
-            else # If user does not reply with yes
+            elif [ "$reply" = "n" ]; then # If user does not reply with yes
                 echo "Ok, please select another FQDN"
             fi
         else
@@ -84,11 +84,11 @@ read_settings() { # Ask the user for input
     WORDPRESS_RESPONSE="Wordpress is already installed"
     if [[ ! -d "$WEBROOT/$newsite_fqdn/wp-admin" ]]; then
         echo "Wordpress is not already installed"
-        read -p "Do you want to download it? [y|n]: " reply
-        if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+        read_yn "Do you want to download it?"
+        if [ "$reply" = "y" ]; then # If user replies with yes
             WORDPRESS_RESPONSE="Wordpress: To be installed"
             INSTALL_WP="true"
-        else # If user does not reply with yes
+        elif [ "$reply" = "n" ]; then # If user does not reply with yes
             WORDPRESS_RESPONSE="Wordpress: Do not install"
             INSTALL_WP="false"
         fi
@@ -129,10 +129,10 @@ echo_summary() { # Prints a summary of the following events
     echo "Existing Webroot: $RESC_REPLY"
     echo "Existing Webconf: $REW_REPLY"
     #echo "SSL Certification: $newsite_ssl_response"
-    read -p "Is this correct? [y|n]: " reply
-    if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
+    read_yn "Is this correct?"
+    if [ "$reply" = "y" ]; then # If user replies with yes
         echo "OK, proceeding with the setup"
-    else # If user does not reply with yes
+    elif [ "$reply" = "n" ]; then # If user does not reply with yes
         echo -e "\nLet's try that again...\n"
         read_settings # Repeat the input sequence
     fi
@@ -200,10 +200,10 @@ echo_complete() { # Print some useful information for the user after the script 
     
     if [[ "$INSTALL_WP" = "true" ]]; then
         echo -e "It is recommended to remove the downloaded \"latest.tar.gz\" file\nunless you are installing multiple sites at once"
-        read -p "Delete the downloaded Wordpress \"latest.tar.gz\" file? [y|n]: " reply
-        if [ "$reply" = "y" ] || [ "$reply" = "Y" ]; then # If user replies with yes
-            sudo rm $WEBROOT/latest.tar.gz && echo "... The tar.gz file has been deleted"
-        else # If user does not reply with yes
+        read_yn "Delete the downloaded Wordpress \"latest.tar.gz\" file?"
+        if [ "$reply" = "y" ]; then # If user replies with yes
+            sudo rm $WEBROOT/latest.tar.gz && echo "The tar.gz file has been deleted"
+        elif [ "$reply" = "n" ]; then # If user does not reply with yes
             echo "Ok, keeping the tar.gz file"
         fi
         echo -e "\nPlease note:\nWordpress requires connection to a database,\nwhich this script does not handle\n\n"
@@ -211,16 +211,31 @@ echo_complete() { # Print some useful information for the user after the script 
 }
 
 error() { # Output a defined error message before aborting the script
-    echo -e "\nTHERE WAS AN ERROR\n$1\nDue to data security, no written files will be deleted\nPlease manually delete unwanted existing files, if any"
+    echo -e "\nTHERE WAS AN ERROR\nReason: $1\nNo written files will be deleted due to data preservation\nPlease manually delete unwanted existing files, if any\nA re-run of this script will allow you to overwrite current changes"
     exit 1
+}
+
+read_yn() {
+    reply=""
+    while [[ "$reply_done" = "false" ]]; do
+        read -p "$1 [Y|N]: " reply
+        if [[ ! "$reply" =~ ^(Y|y|N|n)$ ]]; then
+            echo -e "Unknown answer, please try again\n"
+        fi
+    done
+    if [[ "$reply" =~ ^(Y|y)$ ]]; then
+        reply="y"
+    elif [[ "$reply" =~ ^(N|n)$ ]]; then
+        reply="n"
+    fi
 }
 
 main(){ # Main function
     [ "$1" = "--install-deps" ] && install_deps
-    setup_variables
-    check_existing
-    read_settings
-    echo_summary
+    setup_variables || error "Unable to initialize script variables"
+    check_existing || error "Unable to perform pre-run checks"
+    read_settings || error "Failed to read user input"
+    echo_summary || error "Unable to collect and store user input"
     perform_changes
     echo_complete
 }
