@@ -13,8 +13,7 @@ echo ""
 
 install_deps() { # Installs all basic dependencies for a web server based on Apache2, MariaDB, and PHP 8.0
     sudo apt install lsb-release ca-certificates apt-transport-https software-properties-common -y
-    sudo add-apt-repository ppa:ondrej/php
-    sudo apt update
+    sudo add-apt-repository ppa:ondrej/php && sudo apt update
     sudo apt install apache2 mariadb-client mariadb-server php8.0 php8.0-{bcmath,bz2,cgi,cli,common,curl,gd,imagick,imap,intl,ldap,mbstring,mysql,opcache,readline,snmp,soap,tidy,xml,yaml,zip} libapache2-mod-php -y
 }
 
@@ -32,7 +31,7 @@ check_existing() { # Perform a basic dependency check, and prompt the user to in
         read_yn "Do you want to install them?"
         if [ "$reply" = "y" ]; then # If user replies with yes
             install_deps
-        elif [ "$reply" = "n" ]; then # If user does not reply with yes
+        elif [ "$reply" = "n" ]; then # If user replies with no
             echo -e "Ok, proceeding without installing dependencies\nPlease note that the installation will likely fail\nunless you already have a working web environment" && sleep 5
         fi
     fi
@@ -50,7 +49,7 @@ read_settings() { # Ask the user for input
             if [ "$reply" = "y" ]; then # If user replies with yes
                 REMOVE_EXISTING_WEBROOT="true"
                 webroot_check="ok"
-            elif [ "$reply" = "n" ]; then # If user does not reply with yes
+            elif [ "$reply" = "n" ]; then # If user replies with no
                 echo "Ok, please select another FQDN"
             fi
         else
@@ -64,7 +63,7 @@ read_settings() { # Ask the user for input
             if [ "$reply" = "y" ]; then # If user replies with yes
                 REMOVE_EXISTING_SITE_CONF="true"
                 webconf_check="ok"
-            elif [ "$reply" = "n" ]; then # If user does not reply with yes
+            elif [ "$reply" = "n" ]; then # If user replies with no
                 echo "Ok, please select another FQDN"
             fi
         else
@@ -88,7 +87,7 @@ read_settings() { # Ask the user for input
         if [ "$reply" = "y" ]; then # If user replies with yes
             WORDPRESS_RESPONSE="Wordpress: To be installed"
             INSTALL_WP="true"
-        elif [ "$reply" = "n" ]; then # If user does not reply with yes
+        elif [ "$reply" = "n" ]; then # If user replies with no
             WORDPRESS_RESPONSE="Wordpress: Do not install"
             INSTALL_WP="false"
         fi
@@ -132,7 +131,7 @@ echo_summary() { # Prints a summary of the following events
     read_yn "Is this correct?"
     if [ "$reply" = "y" ]; then # If user replies with yes
         echo "OK, proceeding with the setup"
-    elif [ "$reply" = "n" ]; then # If user does not reply with yes
+    elif [ "$reply" = "n" ]; then # If user replies with no
         echo -e "\nLet's try that again...\n"
         read_settings # Repeat the input sequence
     fi
@@ -188,7 +187,7 @@ perform_changes() { # Perform writes
     fi
 
     # Generate proper apache user permissions, or output an error
-    $(sudo chown -R www-data:www-data $newsite_webroot) || error "Unable to write webroot privileges"
+    $(sudo chown -R www-data:www-data $newsite_webroot) || error "Unable to grant the web-user permissions at $newsite_webroot"
 
     # Enable the new apache2 settings
     sudo a2ensite "$newsite_fqdn" || error "Unable to enable $newsite_fqdn"
@@ -203,7 +202,7 @@ echo_complete() { # Print some useful information for the user after the script 
         read_yn "Delete the downloaded Wordpress \"latest.tar.gz\" file?"
         if [ "$reply" = "y" ]; then # If user replies with yes
             sudo rm $WEBROOT/latest.tar.gz && echo "The tar.gz file has been deleted"
-        elif [ "$reply" = "n" ]; then # If user does not reply with yes
+        elif [ "$reply" = "n" ]; then # If user replies with no
             echo "Ok, keeping the tar.gz file"
         fi
         echo -e "\nPlease note:\nWordpress requires connection to a database,\nwhich this script does not handle\n\n"
@@ -216,8 +215,8 @@ error() { # Output a defined error message before aborting the script
 }
 
 read_yn() {
-    reply=""
-    while [[ "$reply_done" = "false" ]]; do
+    reply="" # Clear out any old value
+    while [[ "$reply_done" = "false" ]]; do # Keep asking until a valid response is given
         read -p "$1 [Y|N]: " reply
         if [[ ! "$reply" =~ ^(Y|y|N|n)$ ]]; then
             echo -e "Unknown answer, please try again\n"
