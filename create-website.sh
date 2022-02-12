@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Output current script version info
-SCRIPT_VERSION="0.3.4"
-LAST_UPDATE="10.02.22"
+SCRIPT_VERSION="0.3.4-3"
+LAST_UPDATE="12.02.22"
 echo ""
 echo "Script version: $SCRIPT_VERSION"
 echo "  Version date: $LAST_UPDATE"
@@ -273,7 +273,7 @@ setup_db() {
 }
 
 echo_complete() { # Print some useful information for the user after the script is complete
-    echo -e "\n\nThe website should now be set up and operational, ready for use.\nPlease verify by going to $newsite_fqdn/index.html\n\nNOTE: Routing is not handled by this script,\nand need to be set up externally in order to reach the site!\nIf routing is not already in place, you can reach the site\nbo going to the IP of this machine appended by $newsite_fqdn\nPlease note that this script does currently not set up HTTPS or databases\n\n"
+    echo -e "\n\nThe website should now be set up and operational, ready for use.\nPlease verify by going to $newsite_fqdn/index.html\n\nNOTE: Routing is not handled by this script,\nand need to be set up externally in order to reach the site!\nIf routing is not already in place, you can reach the site\nbo going to the IP of this machine appended by $newsite_fqdn\nPlease note that this script does currently not set up HTTPS\nDatabase functionality is currently experimental\n\n"
     
     if [[ "$INSTALL_WP" = "true" ]]; then
         echo -e "It is recommended to remove the downloaded \"latest.tar.gz\" file\nunless you are installing multiple sites at once"
@@ -283,7 +283,7 @@ echo_complete() { # Print some useful information for the user after the script 
         elif [ "$reply" = "n" ]; then # If user replies with no
             echo "Ok, keeping the tar.gz file"
         fi
-        echo -e "\nPlease note:\nWordpress requires connection to a database,\nwhich this script does not handle\n\n"
+        echo -e "\nPlease note:\nWordpress requires connection to a database,\nwhich is currently an experimental feature\n\n"
     fi
 }
 
