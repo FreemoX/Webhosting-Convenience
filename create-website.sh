@@ -38,7 +38,7 @@ setup_variables() { # Initialize some variables and constants
 # The check_existing needs to be improved
 check_existing() { # Perform a basic dependency check, and prompt the user to install them if it fails
     [ -d "$WEBROOT" ] && echo -e "The web directory already exists.\nThis usually means a web server already is installed" || echo -e "The web directory does not exist.\nWe'll install Apache2 for you"
-    if [[ -d "$APACHE2_CONF_ROOT" ]]; then
+    if [[ ! -d "$APACHE2_CONF_ROOT" ]]; then
         echo -e "Some dependencies were found to be missing\nThis script can install Apache2, Maria-DB and PHP 8.0 for you"
         read_yn "Do you want to install them?"
         if [ "$reply" = "y" ]; then # If user replies with yes
