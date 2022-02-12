@@ -11,7 +11,19 @@ echo ""
 # Check if the script is being run as sudo, otherwise abort the script
 [ $(id -u) -ne 0 ] && echo "Please run as sudo!" && exit 0
 
-install_deps() { # Installs all basic dependencies for a web server based on Apache2, MariaDB, and PHP 8.0
+grab_params() { # Grab supplied parameters and use them accordingly
+    [ "$1" = "--install-deps" ] && install_deps && echo -e "\n\nThe following dependancies has been installed:\nApache2, MariaDB, PHP 8.0\n\n" && exit 0
+}
+
+initial() { # Initialize different things, like work directory
+    sudo mkdir -p "$workdir"
+}
+
+check_old_run() { # Check if the script has been run before, and grab old input
+    
+}
+
+install_deps() { # Install all basic dependencies for a web server based on Apache2, MariaDB, and PHP 8.0
     sudo apt install lsb-release ca-certificates apt-transport-https software-properties-common -y
     sudo add-apt-repository ppa:ondrej/php && sudo apt update
     sudo apt install apache2 mariadb-client mariadb-server php8.0 php8.0-{bcmath,bz2,cgi,cli,common,curl,gd,imagick,imap,intl,ldap,mbstring,mysql,opcache,readline,snmp,soap,tidy,xml,yaml,zip} libapache2-mod-php -y
@@ -21,6 +33,7 @@ setup_variables() { # Initialize some variables and constants
     WEBROOT="/var/www/html"
     APACHE2_CONF_ROOT="/etc/apache2/sites-available"
     checking="true"
+    workdir="/tmp/create-website-script"
 }
 
 # The check_existing needs to be improved
@@ -74,15 +87,17 @@ read_settings() { # Ask the user for input
     checking="true"
 
     # Read the site title
-    read -p "Site Name: " newsite_sitename
+    echo "Please supply a site title for the initial index.html page"
+    read -p "Site Title: " newsite_sitename
 
     # Read the admin email address
+    echo "Please supply the administrative email for this site"
     read -p "Admin Email: " newsite_admin_email
     
     # Ask if Wordpress should be installed
     WORDPRESS_RESPONSE="Wordpress is already installed"
     if [[ ! -d "$WEBROOT/$newsite_fqdn/wp-admin" ]]; then
-        echo "Wordpress is not already installed"
+        echo "Wordpress is not currently installed"
         read_yn "Do you want to download it?"
         if [ "$reply" = "y" ]; then # If user replies with yes
             WORDPRESS_RESPONSE="Wordpress: To be installed"
@@ -91,6 +106,37 @@ read_settings() { # Ask the user for input
             WORDPRESS_RESPONSE="Wordpress: Do not install"
             INSTALL_WP="false"
         fi
+    fi
+
+    # Ask if the user wants to setup a local database
+    read_yn "Do you want to set up a local database now?"
+    if [ "$reply" = "y" ]; then
+        checking="true"
+        while [ "$checking" == "true" ]; do
+            if [! -f /root/.my.cnf ]; then
+                echo "Please enter root user MySQL password!"
+                echo "Note: password will be hidden when typing"
+                read -sp DB_ROOT_PASSWORD
+            fi
+            read -p "Database Name: " DB_NAME
+            read -p "Username for database user for the website: " DB_USER
+            read -p "Database user host (Default is \"localhost\": " DB_HOST
+            check_pswd="true"
+            while [ "$check_pswd" = "true" ]; do
+                read -p "Database user password: " DB_PASSWORD_1
+                read -p "Verify the password: " DB_PASSWORD_2
+                if [ "$DB_PASSWORD_1" = "$DB_PASSWORD_2" ]; then
+                    check_pswd="false"
+                    DB_PASSWORD="$DB_PASSWORD_1"
+                else
+                    echo "Passwords doesn't match, please type them again"
+                fi
+            done
+        done
+        setup_db="true"
+    elif [ "$reply" = "n" ]; then
+        echo "Ok, proceeding without creating a database"
+        setup_db="false"
     fi
 
     # # # # # # # # # # # # # # # # # # # # # # # #
@@ -127,10 +173,20 @@ echo_summary() { # Prints a summary of the following events
     echo "$WORDPRESS_RESPONSE"
     echo "Existing Webroot: $RESC_REPLY"
     echo "Existing Webconf: $REW_REPLY"
+    if [ "$setup_db" = "true" ]; then
+        echo "Setup Database: Yes"
+        echo "Database Username: $DB_USER"
+        echo "Database Host: $DB_HOST"
+        echo "Database Password: not displayed, but set"
+        echo "Database Name: $DB_NAME"
+    elif [ "$setup_db" = "false" ]; then
+        echo "Setup Database: No"
+    fi
     #echo "SSL Certification: $newsite_ssl_response"
     read_yn "Is this correct?"
     if [ "$reply" = "y" ]; then # If user replies with yes
         echo "OK, proceeding with the setup"
+
     elif [ "$reply" = "n" ]; then # If user replies with no
         echo -e "\nLet's try that again...\n"
         read_settings # Repeat the input sequence
@@ -192,6 +248,28 @@ perform_changes() { # Perform writes
     # Enable the new apache2 settings
     sudo a2ensite "$newsite_fqdn" || error "Unable to enable $newsite_fqdn"
     sudo systemctl restart apache2 || error "Unable to restart apache2"
+
+    setup_db
+}
+
+setup_db() {
+    if [ "$setup_db" = "true" ]; then
+        # If /root/.my.cnf exists then it won't ask for root password
+        if [ -f /root/.my.cnf ]; then
+
+            sudo mysql -e "CREATE DATABASE ${DB_NAME} /*\!40100 DEFAULT CHARACTER SET utf8 */;"
+            sudo mysql -e "CREATE USER ${DB_USER}@${DB_HOST} IDENTIFIED BY '${DB_PASSWORD}';"
+            sudo mysql -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'${DB_HOST}';"
+            sudo mysql -e "FLUSH PRIVILEGES;"
+
+        # If /root/.my.cnf doesn't exist then it'll ask for root password   
+        else
+            sudo mysql -uroot -p${DB_ROOT_PASSWORD} -e "CREATE DATABASE ${DB_NAME} /*\!40100 DEFAULT CHARACTER SET utf8 */;"
+            sudo mysql -uroot -p${DB_ROOT_PASSWORD} -e "CREATE USER ${DB_USER}@${DB_HOST} IDENTIFIED BY '${DB_PASSWORD}';"
+            sudo mysql -uroot -p${DB_ROOT_PASSWORD} -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'${DB_HOST}';"
+            sudo mysql -uroot -p${DB_ROOT_PASSWORD} -e "FLUSH PRIVILEGES;"
+        fi
+    fi
 }
 
 echo_complete() { # Print some useful information for the user after the script is complete
@@ -219,7 +297,7 @@ read_yn() {
     reply="" # Clear out any old value
     while [[ "$reply_done" = "false" ]]; do # Keep asking until a valid response is given
         read -p "$1 [Y|N]: " reply
-        if [[ ! "$reply" =~ ^(Y|y|N|n)$ ]]; then
+        if [[ ! "$reply" =~ ^(Y|y|N|n)$ ]]; then # Check if the response is valid or not
             echo -e "Unknown answer, please try again\n"
         elif [[ "$reply" =~ ^(Y|y|N|n)$ ]]; then
             reply_done="true"
@@ -233,7 +311,9 @@ read_yn() {
 }
 
 main(){ # Main function
-    [ "$1" = "--install-deps" ] && install_deps
+    grab_params
+    check_old_run
+    initial
     setup_variables || error "Unable to initialize script variables"
     check_existing || error "Unable to perform pre-run checks"
     read_settings || error "Failed to read user input"
