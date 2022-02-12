@@ -1,12 +1,11 @@
 #!/bin/bash
 
 # Output current script version info
-SCRIPT_VERSION="0.3.4-3"
+SCRIPT_VERSION="0.3.4-4-dev"
 LAST_UPDATE="12.02.22"
-echo ""
-echo "Script version: $SCRIPT_VERSION"
-echo "  Version date: $LAST_UPDATE"
-echo ""
+echo -e "\nScript version: $SCRIPT_VERSION"
+[[ "$SCRIPT_VERSION" == *"-dev" ]] && echo -e "THIS IS A DEVELOPMENT BUILD\n   Use at your own risk\n"
+echo -e "  Version date: $LAST_UPDATE\n"
 
 # Check if the script is being run as sudo, otherwise abort the script
 [ $(id -u) -ne 0 ] && echo "Please run as sudo!" && exit 0
@@ -16,7 +15,7 @@ grab_params() { # Grab supplied parameters and use them accordingly
 }
 
 initial() { # Initialize different things, like work directory
-    sudo mkdir -p "$workdir"
+    [! -d "$workdir" ] && sudo mkdir -p "$workdir"
 }
 
 check_old_run() { # Check if the script has been run before, and grab old input
